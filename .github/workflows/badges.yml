@@ -63,4 +63,4 @@ jobs:
 
       - name: Push Changes
         run: |
-          git push
+          git push https://${{ secrets.PAT }}@github.com/FreddyWordingham/json-db.git
