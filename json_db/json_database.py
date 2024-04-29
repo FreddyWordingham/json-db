@@ -16,6 +16,7 @@ class JSONDatabase:
     @typechecked
     @staticmethod
     def load(mapping: Dict[str, Type[BaseModel]], path: Path) -> "JSONDatabase":
+
         json_str = path.read_text()
         data_dict = json.loads(json_str)
 
