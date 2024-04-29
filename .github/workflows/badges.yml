@@ -1,0 +1,66 @@
+name: Update Badges
+
+on:
+  repository_dispatch:
+    types: [badges-trigger]
+
+concurrency:
+  group: badge-updates
+  cancel-in-progress: true
+
+jobs:
+  update_badges:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Coverage Badge
+        run: |
+          COVERAGE_PERCENT=$(sh ./ci/calculate_coverage.sh | grep -Eo '[0-9]+(\.[0-9]+)?' | tail -1)
+          ESCAPED_PERCENT=$(echo "$COVERAGE_PERCENT" | sed 's/%/%%/g') # Escape percentage sign for URL
+          echo "Coverage: $COVERAGE_PERCENT%"
+          BADGE_URL="https://img.shields.io/badge/test_coverage-${ESCAPED_PERCENT}%25-brightgreen"
+          sed -i "s|https://img.shields.io/badge/test_coverage-.*-brightgreen|${BADGE_URL}|g" README.md
+
+      - name: Complexity Badge
+        run: |
+          COMPLEXITY_SCORE=$(sh ./ci/calculate_complexity.sh | grep 'Average complexity:' | cut -d ' ' -f 3)
+          echo "Complexity Score: $COMPLEXITY_SCORE"
+          BADGE_URL="https://img.shields.io/badge/complexity-${COMPLEXITY_SCORE}-cyan"
+          sed -i "s|https://img.shields.io/badge/complexity-.*-cyan|${BADGE_URL}|g" README.md
+
+      - name: Maintainability Badge
+        run: |
+          MAINTAINABILITY_SCORE=$(sh ./ci/calculate_maintainability.sh | grep -Eo '[0-9]+(\.[0-9]+)?' | tail -1)
+          echo "Maintainability Score: $MAINTAINABILITY_SCORE"
+          BADGE_URL="https://img.shields.io/badge/maintainability-${MAINTAINABILITY_SCORE}%25-blue"
+          sed -i "s|https://img.shields.io/badge/maintainability-.*-blue|${BADGE_URL}|g" README.md
+
+      - name: Commit Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git commit -m "Update README with new badges: Coverage $COVERAGE_PERCENT%, Complexity $COMPLEXITY_SCORE, Maintainability $MAINTAINABILITY_SCORE" || echo "No changes to commit"
+
+      - name: Pull Latest Changes
+        run: |
+          git fetch origin main
+          git merge origin/main --no-ff  # Merging the changes with a merge commit
+
+      - name: Push Changes
+        run: |
+          git push
